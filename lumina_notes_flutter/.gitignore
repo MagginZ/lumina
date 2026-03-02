@@ -1,0 +1,17 @@
+# Environment（API Key 敏感信息，勿提交）
+# env
+
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+
+# Generated
+*.g.dart
+*.freezed.dart
+
+# Environment
+env
