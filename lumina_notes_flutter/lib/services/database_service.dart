@@ -143,11 +143,15 @@ class DatabaseService {
     await _saveNotes(notes);
   }
 
-  static Future<void> updateBookLastPreview(String bookId, String? preview, String updatedAt) async {
+  static Future<void> updateBookLastPreview(
+    String bookId, String? preview, String updatedAt, {String? title}
+  ) async {
     final books = await getAllBooks();
     final idx = books.indexWhere((b) => b.id == bookId);
     if (idx >= 0) {
-      books[idx] = books[idx].copyWith(lastNotePreview: preview, updatedAt: updatedAt);
+      var updated = books[idx].copyWith(lastNotePreview: preview, updatedAt: updatedAt);
+      if (title != null) updated = updated.copyWith(title: title);
+      books[idx] = updated;
       await _saveBooks(books);
     }
   }

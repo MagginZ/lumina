@@ -94,6 +94,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 从笔记中提取列表显示用的标题：优先 note.title，否则取内容首行
+  static String _noteDisplayTitle(Note note) {
+    if (note.title.trim().isNotEmpty) return note.title.trim();
+    final firstLine = note.content.split('\n').first.trim();
+    return firstLine.isNotEmpty ? firstLine : '未命名笔记';
+  }
+
   Future<void> saveNote(Note updatedNote) async {
     await DatabaseService.saveNote(updatedNote);
     final idx = _notes.indexWhere((n) => n.id == updatedNote.id);
@@ -103,28 +110,46 @@ class AppState extends ChangeNotifier {
       _notes.insert(0, updatedNote);
     }
 
-    final preview = updatedNote.content.length > 50
-        ? '${updatedNote.content.substring(0, 50)}...'
-        : updatedNote.content;
+    final displayTitle = _noteDisplayTitle(updatedNote);
+    // 预览：若标题取自内容首行，则预览从第二行开始，避免重复
+    String previewContent = updatedNote.content;
+    if (updatedNote.title.isEmpty && updatedNote.content.contains('\n')) {
+      final lines = updatedNote.content.split('\n');
+      previewContent = lines.sublist(1).join('\n');
+    }
+    final preview = previewContent.length > 50
+        ? '${previewContent.substring(0, 50)}...'
+        : previewContent;
+    // 默认书籍（未分类）同步笔记标题，便于列表显示
+    final bookIdx = _books.indexWhere((b) => b.id == updatedNote.bookId);
+    final isDefaultBook = bookIdx >= 0 &&
+        _books[bookIdx].id == '1' &&
+        _books[bookIdx].title == '未分类';
     await DatabaseService.updateBookLastPreview(
       updatedNote.bookId,
       preview.isEmpty ? null : preview,
       updatedNote.updatedAt,
+      title: isDefaultBook ? displayTitle : null,
     );
-    _updateBookPreview(updatedNote.bookId, preview, updatedNote.updatedAt);
+    _updateBookPreview(
+      updatedNote.bookId,
+      preview: preview,
+      updatedAt: updatedNote.updatedAt,
+      title: isDefaultBook ? displayTitle : null,
+    );
 
     _currentView = AppView.books;
     _selectedNote = null;
     notifyListeners();
   }
 
-  void _updateBookPreview(String bookId, String? preview, String updatedAt) {
+  void _updateBookPreview(String bookId, {String? preview, required String updatedAt, String? title}) {
     final idx = _books.indexWhere((b) => b.id == bookId);
     if (idx >= 0) {
-      _books[idx] = _books[idx].copyWith(
-        lastNotePreview: preview,
-        updatedAt: updatedAt,
-      );
+      var updated = _books[idx].copyWith(updatedAt: updatedAt);
+      if (preview != null) updated = updated.copyWith(lastNotePreview: preview);
+      if (title != null) updated = updated.copyWith(title: title);
+      _books[idx] = updated;
     }
   }
 

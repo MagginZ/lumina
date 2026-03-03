@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
 import '../models/book.dart';
-import '../models/note.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
@@ -189,15 +188,17 @@ class _BookItem extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  book.author,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                if (book.author != '默认') ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    book.author,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
                 if (book.lastNotePreview != null) ...[
                   const SizedBox(height: 4),
                   Text(
