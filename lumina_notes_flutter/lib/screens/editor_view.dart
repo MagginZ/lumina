@@ -61,14 +61,17 @@ class _EditorViewState extends State<EditorView> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              _buildHeader(context, isDark),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                _buildHeader(context, isDark),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,24 +130,25 @@ class _EditorViewState extends State<EditorView> {
                     ),
                   ),
                 ),
-              ),
-              _buildBottomToolbar(isDark),
-            ],
-          ),
-          AiAssistant(
-            isOpen: _isAiOpen,
-            onClose: () => setState(() => _isAiOpen = false),
-            noteContent: _contentController.text,
-            onSaveToNote: (content) {
-              setState(() {
-                final current = _contentController.text;
-                _contentController.text = current.isEmpty
-                    ? content
-                    : '$current\n\n--- AI 总结 ---\n$content';
-              });
-            },
-          ),
-        ],
+                ),
+                _buildBottomToolbar(isDark),
+              ],
+            ),
+            AiAssistant(
+              isOpen: _isAiOpen,
+              onClose: () => setState(() => _isAiOpen = false),
+              noteContent: _contentController.text,
+              onSaveToNote: (content) {
+                setState(() {
+                  final current = _contentController.text;
+                  _contentController.text = current.isEmpty
+                      ? content
+                      : '$current\n\n--- AI 总结 ---\n$content';
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
