@@ -26,6 +26,12 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于拍摄笔记图片</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于从相册选择图片添加到笔记</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>拍摄视频时需要麦克风</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
