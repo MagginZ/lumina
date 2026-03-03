@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,23 +14,61 @@ import 'screens/editor_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DatabaseService.init();
-  try {
-    await dotenv.load(fileName: 'env');
-  } catch (_) {
-    // env 不存在或加载失败时继续运行，AI 功能将不可用
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exception}');
+  };
+
+  runZonedGuarded(() async {
+    try {
+      await DatabaseService.init();
+      try {
+        await dotenv.load(fileName: 'env');
+      } catch (_) {}
+      final apiKey = (dotenv.env['OPENROUTER_API_KEY'] ?? '').trim();
+      if (apiKey.isNotEmpty) AiService.init(apiKey);
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+        ),
+      );
+      runApp(const LuminaNotesApp());
+    } catch (e, st) {
+      debugPrint('Init failed: $e\n$st');
+      runApp(_ErrorApp('初始化失败: $e'));
+    }
+  }, (error, stack) {
+    debugPrint('Uncaught: $error\n$stack');
+    runApp(_ErrorApp('启动错误: $error'));
+  });
+}
+
+class _ErrorApp extends StatelessWidget {
+  final String message;
+  const _ErrorApp(this.message);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(message, textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
-  final apiKey = (dotenv.env['OPENROUTER_API_KEY'] ?? '').trim();
-  if (apiKey.isNotEmpty) {
-    AiService.init(apiKey);
-  }
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent,
-    ),
-  );
-  runApp(const LuminaNotesApp());
 }
 
 class LuminaNotesApp extends StatelessWidget {
