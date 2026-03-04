@@ -35,6 +35,7 @@ Future<void> main() async {
         ),
       );
       runApp(const LuminaNotesApp());
+      _setupAppLifecycle();
     } catch (e, st) {
       debugPrint('Init failed: $e\n$st');
       runApp(_ErrorApp('初始化失败: $e'));
@@ -43,6 +44,28 @@ Future<void> main() async {
     debugPrint('Uncaught: $error\n$stack');
     runApp(_ErrorApp('启动错误: $error'));
   });
+}
+
+void _setupAppLifecycle() {
+  WidgetsBinding.instance.addObserver(
+    _AppLifecycleObserver(),
+  );
+}
+
+class _AppLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _flushHive();
+    }
+  }
+
+  Future<void> _flushHive() async {
+    try {
+      await DatabaseService.flush();
+    } catch (_) {}
+  }
 }
 
 class _ErrorApp extends StatelessWidget {

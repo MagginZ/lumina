@@ -52,7 +52,11 @@ class _EditorViewState extends State<EditorView> {
     return _pendingImageUrl ?? widget.note.imageUrl;
   }
 
-  void _handleDone() async {
+  Future<void> _saveAndBack() async {
+    await _handleDone();
+  }
+
+  Future<void> _handleDone() async {
     final clearImage = _pendingImageUrl != null && _pendingImageUrl!.isEmpty;
     final imageUrl = clearImage ? null : (_pendingImageUrl ?? widget.note.imageUrl);
     final updated = widget.note.copyWith(
@@ -303,7 +307,7 @@ class _EditorViewState extends State<EditorView> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           TextButton.icon(
-            onPressed: () => context.read<AppState>().back(),
+            onPressed: () => _saveAndBack(),
             icon: const Icon(Icons.chevron_left, color: AppColors.primary, size: 28),
             label: const Text('笔记', style: TextStyle(color: AppColors.primary, fontSize: 18)),
           ),

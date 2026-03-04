@@ -17,6 +17,10 @@ class DatabaseService {
     await _seedIfEmpty();
   }
 
+  static Future<void> flush() async {
+    if (_box != null) await _box!.flush();
+  }
+
   static Future<Box<dynamic>> get _db async {
     if (_box == null) await init();
     return _box!;
@@ -93,6 +97,7 @@ class DatabaseService {
       'updatedAt': b.updatedAt,
     }).toList();
     await db.put(_booksKey, json);
+    await db.flush();
   }
 
   static Future<void> _saveNotes(List<Note> notes) async {
@@ -107,6 +112,7 @@ class DatabaseService {
       'updatedAt': n.updatedAt,
     }).toList();
     await db.put(_notesKey, json);
+    await db.flush();
   }
 
   static Future<void> deleteBook(String id) async {
