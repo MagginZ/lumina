@@ -35,12 +35,49 @@ class AppState extends ChangeNotifier {
     try {
       _books = await DatabaseService.getAllBooks();
       _notes = await DatabaseService.getAllNotes();
+      await _migrateLegacySingleBook();
     } catch (e) {
       _loadError = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// 迁移旧数据：若存在 id='1' 的书籍且有多条笔记，拆分为多条书籍
+  Future<void> _migrateLegacySingleBook() async {
+    if (!_books.any((b) => b.id == '1')) return;
+    final notesInBook = _notes.where((n) => n.bookId == '1').toList();
+    if (notesInBook.length <= 1) return;
+
+    final otherBooks = _books.where((b) => b.id != '1').toList();
+    final otherNotes = _notes.where((n) => n.bookId != '1').toList();
+    final newBooks = <Book>[];
+    final newNotes = <Note>[];
+
+    for (final note in notesInBook) {
+      final displayTitle = _noteDisplayTitle(note);
+      final newBook = Book(
+        id: 'book-${note.id}',
+        title: displayTitle,
+        author: '默认',
+        lastNotePreview: note.content.length > 50
+            ? '${note.content.substring(0, 50)}...'
+            : note.content,
+        updatedAt: note.updatedAt,
+      );
+      newBooks.add(newBook);
+      newNotes.add(note.copyWith(bookId: newBook.id));
+    }
+
+    _books = [...newBooks, ...otherBooks];
+    _notes = [...newNotes, ...otherNotes];
+    _books.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    _notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+    for (final b in newBooks) await DatabaseService.saveBook(b);
+    for (final n in newNotes) await DatabaseService.saveNote(n);
+    await DatabaseService.deleteBook('1');
   }
 
   Future<void> deleteBook(String id) async {
@@ -51,10 +88,30 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> createNote() async {
-    await _createNoteForBookId(
-      _books.isNotEmpty ? _books.first.id : null,
-      defaultTitle: '',
+    // 每条新笔记创建独立的书籍条目，避免多条笔记挤在同一个「未分类」下
+    final now = DateTime.now();
+    final ts = now.millisecondsSinceEpoch;
+    final newBook = Book(
+      id: 'book-$ts',
+      title: '未命名笔记',
+      author: '默认',
+      updatedAt: _formatDateTime(now),
     );
+    await DatabaseService.saveBook(newBook);
+    _books.insert(0, newBook);
+
+    final newNote = Note(
+      id: 'note-$ts',
+      bookId: newBook.id,
+      title: '',
+      content: '',
+      updatedAt: _formatDateTime(now),
+    );
+    await DatabaseService.saveNote(newNote);
+    _notes.insert(0, newNote);
+    _selectedNote = newNote;
+    _currentView = AppView.editor;
+    notifyListeners();
   }
 
   Future<void> createNoteForBook(Book book) async {
@@ -63,23 +120,27 @@ class AppState extends ChangeNotifier {
 
   Future<void> _createNoteForBookId(String? bookId, {String defaultTitle = ''}) async {
     if (bookId == null || _books.isEmpty) {
+      final now = DateTime.now();
+      final ts = now.millisecondsSinceEpoch;
       final defaultBook = Book(
-        id: '1',
-        title: '未分类',
+        id: 'book-$ts',
+        title: defaultTitle.isNotEmpty ? defaultTitle : '未命名笔记',
         author: '默认',
-        updatedAt: _formatDateTime(DateTime.now()),
+        updatedAt: _formatDateTime(now),
       );
       await DatabaseService.saveBook(defaultBook);
-      _books = [defaultBook];
-      bookId = '1';
+      _books.insert(0, defaultBook);
+      bookId = defaultBook.id;
     }
 
+    final now = DateTime.now();
+    final ts = now.millisecondsSinceEpoch;
     final newNote = Note(
-      id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'note-$ts',
       bookId: bookId,
       title: defaultTitle,
       content: '',
-      updatedAt: _formatDateTime(DateTime.now()),
+      updatedAt: _formatDateTime(now),
     );
     await DatabaseService.saveNote(newNote);
     _notes.insert(0, newNote);
@@ -120,22 +181,20 @@ class AppState extends ChangeNotifier {
     final preview = previewContent.length > 50
         ? '${previewContent.substring(0, 50)}...'
         : previewContent;
-    // 默认书籍（未分类）同步笔记标题，便于列表显示
+    // 单笔记书籍（author=默认）同步笔记标题到书籍，便于列表显示
     final bookIdx = _books.indexWhere((b) => b.id == updatedNote.bookId);
-    final isDefaultBook = bookIdx >= 0 &&
-        _books[bookIdx].id == '1' &&
-        _books[bookIdx].title == '未分类';
+    final isSingleNoteBook = bookIdx >= 0 && _books[bookIdx].author == '默认';
     await DatabaseService.updateBookLastPreview(
       updatedNote.bookId,
       preview.isEmpty ? null : preview,
       updatedNote.updatedAt,
-      title: isDefaultBook ? displayTitle : null,
+      title: isSingleNoteBook ? displayTitle : null,
     );
     _updateBookPreview(
       updatedNote.bookId,
       preview: preview,
       updatedAt: updatedNote.updatedAt,
-      title: isDefaultBook ? displayTitle : null,
+      title: isSingleNoteBook ? displayTitle : null,
     );
 
     _currentView = AppView.books;

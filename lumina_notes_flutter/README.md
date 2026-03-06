@@ -26,13 +26,23 @@ flutter pub get
 flutter run
 ```
 
+### Web 预览
+
+若在 Chrome 调试时遇到「The targeted input element must be the active input element」导致无法点击保存/返回，可：
+
+1. **使用 release 模式**（推荐）：`flutter run -d chrome --web-port 5555 --release`
+2. **升级 Flutter**：`flutter upgrade`（该问题已在 3.27.2+ 修复）
+
 ### 在 iOS 真机运行
+
+⚠️ **iOS 18.4+ 真机必须用 Release 模式**，否则会崩溃白屏。
 
 1. **前置**：Mac + Xcode + 数据线连接 iPhone
 2. **iPhone**：`设置 → 隐私与安全 → 开发者模式` 打开
 3. **信任电脑**：连接后点击「信任」
 4. **配置签名**：`open ios/Runner.xcworkspace` 打开 Xcode → Runner → Signing & Capabilities → 勾选 Automatically manage signing → 选择你的 Apple ID 作为 Team
-5. **运行**：`flutter run -d <设备id>` 或 `flutter run` 选择 iPhone
+5. **运行**：在终端执行 `./run_ios_release.sh` 或 `flutter run --release`（务必带 `--release`，否则会闪退）
+6. 安装完成后，在 iPhone 主屏点击应用图标打开
 
 ## 项目结构
 

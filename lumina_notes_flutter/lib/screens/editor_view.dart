@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -53,7 +54,15 @@ class _EditorViewState extends State<EditorView> {
   }
 
   Future<void> _saveAndBack() async {
+    _unfocusForWeb();
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
     await _handleDone();
+  }
+
+  /// Web 平台：先解除输入框焦点，避免 pointer 断言错误导致无法点击
+  void _unfocusForWeb() {
+    FocusScope.of(context).unfocus();
   }
 
   Future<void> _handleDone() async {
@@ -207,21 +216,28 @@ class _EditorViewState extends State<EditorView> {
       body: SafeArea(
         top: true,
         bottom: false,
-        child: Stack(
+        child: _buildEditorBody(isDark),
+      ),
+    );
+  }
+
+  Widget _buildEditorBody(bool isDark) {
+    final stack = Stack(
+      children: [
+        Column(
           children: [
-            Column(
-              children: [
-                _buildHeader(context, isDark),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 24),
+            _wrapWithWebUnfocus(_buildHeader(context, isDark)),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 24),
                         TextField(
                           controller: _titleController,
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.bold,
@@ -236,63 +252,73 @@ class _EditorViewState extends State<EditorView> {
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
-                        if (_effectiveImageUrl != null) _buildAiImage(isDark),
-                        const SizedBox(height: 16),
+                      if (_effectiveImageUrl != null) _buildAiImage(isDark),
+                      const SizedBox(height: 16),
                         TextField(
                           controller: _contentController,
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           maxLines: null,
                           minLines: 12,
                           style: TextStyle(
-                            fontSize: 18,
-                            height: 1.6,
-                            color: isDark ? Colors.grey[200] : const Color(0xFF334155),
+                          fontSize: 18,
+                          height: 1.6,
+                          color: isDark ? Colors.grey[200] : const Color(0xFF334155),
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '在此输入笔记内容...',
+                          hintStyle: TextStyle(
+                            color: isDark ? Colors.grey[600] : Colors.grey[500],
                           ),
-                          decoration: InputDecoration(
-                            hintText: '在此输入笔记内容...',
-                            hintStyle: TextStyle(
-                              color: isDark ? Colors.grey[600] : Colors.grey[500],
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Center(
+                        child: Text(
+                          '编辑于 ${widget.note.updatedAt}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.grey[600] : Colors.grey[500],
+                            letterSpacing: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 32),
-                        Center(
-                            child: Text(
-                              '编辑于 ${widget.note.updatedAt}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? Colors.grey[600] : Colors.grey[500],
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 48),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 48),
+                    ],
                   ),
                 ),
-                ),
-                _buildBottomToolbar(isDark),
-              ],
+              ),
             ),
-            AiAssistant(
-              isOpen: _isAiOpen,
-              onClose: () => setState(() => _isAiOpen = false),
-              noteContent: _contentController.text,
-              onSaveToNote: (content) {
-                setState(() {
-                  final current = _contentController.text;
-                  _contentController.text = current.isEmpty
-                      ? content
-                      : '$current\n\n--- AI 总结 ---\n$content';
-                });
-              },
-            ),
+            _wrapWithWebUnfocus(_buildBottomToolbar(isDark)),
           ],
         ),
-      ),
+        AiAssistant(
+          isOpen: _isAiOpen,
+          onClose: () => setState(() => _isAiOpen = false),
+          noteContent: _contentController.text,
+          onSaveToNote: (content) {
+            setState(() {
+              final current = _contentController.text;
+              _contentController.text = current.isEmpty
+                  ? content
+                  : '$current\n\n--- AI 总结 ---\n$content';
+            });
+          },
+        ),
+      ],
+    );
+    return stack;
+  }
+
+  /// Web：点击时先解除输入框焦点，避免 pointer 断言导致无法点击
+  Widget _wrapWithWebUnfocus(Widget child) {
+    if (!kIsWeb) return child;
+    return Listener(
+      onPointerDown: (_) => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: child,
     );
   }
 

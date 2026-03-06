@@ -48,17 +48,30 @@ open ios/Runner.xcworkspace
 
 ---
 
-## 二、Dart VM Service was not discovered（应用启动后崩溃）
+## 二、Dart VM Service was not discovered / 白屏 / SIGABRT（iOS 18.4+ 真机必看）
 
-终端显示构建成功，但应用在真机上启动时崩溃，导致 VM Service 无法连接。
+**根本原因**：iOS 18.4+ 禁止 Debug 模式的 JIT 编译，真机上 Debug 会崩溃。
 
-### 可能原因
+### ⭐ 必须使用 Release 模式（真机唯一可行方式）
 
-1. **项目路径含特殊字符**：如 emoji、中文等，可能导致 dyld 加载失败
-2. **Flutter 与 iOS 版本兼容性**
-3. **真机调试环境异常**
+```bash
+cd lumina_notes_flutter
+flutter run --release
+```
 
-### 方案 A：先跑模拟器验证
+或使用脚本：
+```bash
+./run_ios_release.sh
+```
+
+### 若从 Xcode 运行
+
+已修改 Runner scheme，**Product → Run** 会使用 Release 配置。若仍崩溃，请：
+1. **Product → Scheme → Edit Scheme**
+2. **Run** → **Build Configuration** 改为 **Release**
+3. 关闭 Xcode，终端执行 `flutter run --release`
+
+### 方案 A：先跑模拟器验证（Debug 可用）
 
 ```bash
 cd lumina_notes_flutter
@@ -66,7 +79,7 @@ flutter run
 # 选择 iOS 模拟器（如 iPhone 15）
 ```
 
-若模拟器能正常运行，问题多半在真机环境。
+模拟器不受 JIT 限制，Debug 模式可正常使用。
 
 ### 方案 B：移到简单路径（推荐）
 
